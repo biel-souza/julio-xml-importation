@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
+    "start": "node main.js",
+    "dev": "node --watch main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -16,5 +19,12 @@
   "bugs": {
     "url": "https://github.com/biel-souza/julio-xml-importation/issues"
   },
-  "homepage": "https://github.com/biel-souza/julio-xml-importation#readme"
+  "homepage": "https://github.com/biel-souza/julio-xml-importation#readme",
+  "dependencies": {
+    "dotenv": "^17.2.4",
+    "express": "^5.2.1",
+    "multer": "^2.0.2",
+    "pg": "^8.18.0",
+    "xml2js": "^0.6.2"
+  }
 }
