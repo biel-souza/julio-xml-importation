@@ -16,6 +16,10 @@ const pool = new Pool({
 });
 
 const app = express();
+
+// Servir arquivos estáticos
+app.use(express.static("public"));
+
 const upload = multer({
   dest: "uploads/",
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
@@ -131,8 +135,8 @@ async function importarImoveis(xmlPath) {
         Number(details.LotArea?._) || Number(details.LotArea) || 0;
       const area_imovel = livingArea > 0 ? livingArea : lotArea;
 
-      const link = item.DetailViewUrl 
-        ? item.DetailViewUrl.replace(/\+/g, '-') 
+      const link = item.DetailViewUrl
+        ? item.DetailViewUrl.replace(/\+/g, "-")
         : null;
 
       const baseIndex = index * 12;
