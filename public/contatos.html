@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Gerador de CSV - Chatwoot</title>
+    <style>
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Arial;
+        margin: 24px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 20px;
+      }
+      p {
+        margin: 0 0 16px;
+        color: #444;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      input {
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        width: 100%;
+      }
+      .btns {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+      button {
+        padding: 10px 12px;
+        border: 0;
+        border-radius: 10px;
+        cursor: pointer;
+        background: #111;
+        color: #fff;
+      }
+      button.secondary {
+        background: #eee;
+        color: #111;
+        border: 1px solid #ddd;
+      }
+      button.danger {
+        background: #b00020;
+      }
+      textarea {
+        width: 100%;
+        min-height: 120px;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", monospace;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      th,
+      td {
+        border-bottom: 1px solid #eee;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #666;
+      }
+      .small {
+        font-size: 12px;
+        color: #666;
+        margin-top: 8px;
+      }
+      .right {
+        text-align: right;
+      }
+      .muted {
+        color: #666;
+      }
+      .pill {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: #f3f3f3;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Gerador de CSV para Chatwoot <span class="pill">name,phone</span></h1>
+    <p>
+      Preencha ou cole os contatos e clique em <b>Baixar CSV</b>. O arquivo sai
+      no formato aceito pelo import do Chatwoot.
+    </p>
+
+    <div class="btns">
+      <button class="secondary" onclick="addRow()">Adicionar linha</button>
+      <button class="secondary" onclick="addRows(10)">+10 linhas</button>
+      <button class="danger" onclick="clearAll()">Limpar tudo</button>
+      <button onclick="downloadCsv()">Baixar CSV (Chatwoot)</button>
+    </div>
+
+    <div class="muted" style="margin-top: 10px; margin-bottom: 6px">
+      Cola rápida (opcional): cole linhas no formato <b>nome,telefone</b> (ou
+      <b>nome;telefone</b>).
+    </div>
+    <textarea
+      id="pasteBox"
+      placeholder="Ex:\nMaria,+5547999999999\nJoão;5547988887777\n..."
+    ></textarea>
+    <div class="btns">
+      <button class="secondary" onclick="importFromPaste()">
+        Importar do texto
+      </button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 55%">name</th>
+          <th style="width: 40%">phone</th>
+          <th class="right" style="width: 5%">Ação</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+
+    <div class="small">
+      Dicas:
+      <ul>
+        <li>
+          Telefone pode vir com <b>+</b> ou só números. O sistema remove
+          <code>=</code>, espaços, parênteses e hífen automaticamente.
+        </li>
+        <li>Se você colar uma lista “crua”, use o bloco “Cola rápida”.</li>
+      </ul>
+    </div>
+
+    <script>
+      const tbody = document.getElementById("tbody");
+
+      function sanitizePhone(v) {
+        if (v == null) return "";
+        let s = String(v).trim();
+        s = s.replace(/^=/, ""); // remove '=' no início
+        s = s.replace(/[\s\-\(\)\.]/g, ""); // remove espaço, hífen, parênteses, ponto
+        s = s.replace(/^"+|"+$/g, ""); // remove aspas externas
+        return s;
+      }
+
+      function csvEscape(value) {
+        const s = (value ?? "").toString();
+        // Escapa se tiver vírgula, aspas ou quebra de linha
+        if (/[,"\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+        return s;
+      }
+
+      function addRow(name = "", phone = "") {
+        const tr = document.createElement("tr");
+
+        const tdName = document.createElement("td");
+        const tdPhone = document.createElement("td");
+        const tdAction = document.createElement("td");
+        tdAction.className = "right";
+
+        const inName = document.createElement("input");
+        inName.placeholder = "Nome";
+        inName.value = name;
+
+        const inPhone = document.createElement("input");
+        inPhone.placeholder = "+5547999999999";
+        inPhone.value = phone;
+        inPhone.addEventListener(
+          "blur",
+          () => (inPhone.value = sanitizePhone(inPhone.value)),
+        );
+
+        const btnDel = document.createElement("button");
+        btnDel.className = "secondary";
+        btnDel.textContent = "X";
+        btnDel.onclick = () => tr.remove();
+
+        tdName.appendChild(inName);
+        tdPhone.appendChild(inPhone);
+        tdAction.appendChild(btnDel);
+
+        tr.appendChild(tdName);
+        tr.appendChild(tdPhone);
+        tr.appendChild(tdAction);
+
+        tbody.appendChild(tr);
+      }
+
+      function addRows(n) {
+        for (let i = 0; i < n; i++) addRow();
+      }
+
+      function clearAll() {
+        if (!confirm("Limpar todos os contatos da tela?")) return;
+        tbody.innerHTML = "";
+        document.getElementById("pasteBox").value = "";
+        addRows(5);
+      }
+
+      function importFromPaste() {
+        const text = document.getElementById("pasteBox").value.trim();
+        if (!text) return;
+
+        const lines = text
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter(Boolean);
+
+        lines.forEach((line) => {
+          // aceita "nome,telefone" ou "nome;telefone"
+          let parts = line.includes(",")
+            ? line.split(",")
+            : line.includes(";")
+              ? line.split(";")
+              : [];
+          if (parts.length < 2) return;
+
+          const name = (parts[0] ?? "").trim();
+          const phone = sanitizePhone(
+            parts
+              .slice(1)
+              .join(line.includes(",") ? "," : ";")
+              .trim(),
+          );
+
+          // pula header colado por engano
+          if (
+            name.toLowerCase() === "name" &&
+            phone.toLowerCase().includes("phone")
+          )
+            return;
+
+          addRow(name, phone);
+        });
+
+        document.getElementById("pasteBox").value = "";
+      }
+
+      function downloadCsv() {
+        // Header obrigatório
+        const rows = [["name", "phone"]];
+
+        [...tbody.querySelectorAll("tr")].forEach((tr) => {
+          const inputs = tr.querySelectorAll("input");
+          const name = (inputs[0]?.value ?? "").trim();
+          const phone = sanitizePhone(inputs[1]?.value ?? "");
+
+          if (!name && !phone) return;
+          rows.push([name, phone]);
+        });
+
+        const csv = rows.map((r) => r.map(csvEscape).join(",")).join("\n");
+
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "chatwoot-contatos.csv";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        URL.revokeObjectURL(url);
+      }
+
+      // inicia com 5 linhas
+      addRows(5);
+    </script>
+  </body>
+</html>
