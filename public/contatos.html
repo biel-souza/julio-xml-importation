@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Gerador de CSV - Chatwoot</title>
+    <title>Gerador de CSV - Chatwoot (name,phone_number)</title>
     <style>
       body {
         font-family:
@@ -21,17 +21,6 @@
       p {
         margin: 0 0 16px;
         color: #444;
-      }
-      .row {
-        display: flex;
-        gap: 8px;
-        margin-bottom: 8px;
-      }
-      input {
-        padding: 10px;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        width: 100%;
       }
       .btns {
         display: flex;
@@ -82,10 +71,11 @@
         letter-spacing: 0.04em;
         color: #666;
       }
-      .small {
-        font-size: 12px;
-        color: #666;
-        margin-top: 8px;
+      input {
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        width: 100%;
       }
       .right {
         text-align: right;
@@ -100,13 +90,41 @@
         background: #f3f3f3;
         font-size: 12px;
       }
+      .small {
+        font-size: 12px;
+        color: #666;
+        margin-top: 10px;
+        line-height: 1.4;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      @media (min-width: 900px) {
+        .grid {
+          grid-template-columns: 1.2fr 0.8fr;
+        }
+      }
+      .card {
+        border: 1px solid #eee;
+        border-radius: 14px;
+        padding: 14px;
+      }
+      code {
+        background: #f6f6f6;
+        padding: 2px 6px;
+        border-radius: 6px;
+      }
     </style>
   </head>
   <body>
-    <h1>Gerador de CSV para Chatwoot <span class="pill">name,phone</span></h1>
+    <h1>
+      Gerador de CSV para Chatwoot <span class="pill">name,phone_number</span>
+    </h1>
     <p>
       Preencha ou cole os contatos e clique em <b>Baixar CSV</b>. O arquivo sai
-      no formato aceito pelo import do Chatwoot.
+      no formato que o import do Chatwoot reconhece.
     </p>
 
     <div class="btns">
@@ -116,57 +134,101 @@
       <button onclick="downloadCsv()">Baixar CSV (Chatwoot)</button>
     </div>
 
-    <div class="muted" style="margin-top: 10px; margin-bottom: 6px">
-      Cola rápida (opcional): cole linhas no formato <b>nome,telefone</b> (ou
-      <b>nome;telefone</b>).
-    </div>
-    <textarea
-      id="pasteBox"
-      placeholder="Ex:\nMaria,+5547999999999\nJoão;5547988887777\n..."
-    ></textarea>
-    <div class="btns">
-      <button class="secondary" onclick="importFromPaste()">
-        Importar do texto
-      </button>
+    <div class="grid">
+      <div class="card">
+        <div class="muted" style="margin-bottom: 6px">
+          Cola rápida (opcional): cole linhas no formato
+          <b>nome,telefone</b> (ou <b>nome;telefone</b>).
+        </div>
+        <textarea
+          id="pasteBox"
+          placeholder="Ex:
+Maria,+47999999999
+João;47988887777
+..."
+        ></textarea>
+        <div class="btns">
+          <button class="secondary" onclick="importFromPaste()">
+            Importar do texto
+          </button>
+        </div>
+        <div class="small">
+          O sistema vai normalizar o telefone e (se estiver sem país) vai
+          assumir Brasil e gerar <code>+55</code>.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="muted" style="margin-bottom: 6px">
+          <b>Regras de normalização</b>
+        </div>
+        <div class="small">
+          <ul>
+            <li>
+              Remove <code>=</code> no início (quando veio como “fórmula”)
+            </li>
+            <li>Remove espaços, <code>( )</code>, hífens e pontos</li>
+            <li>Se vier <code>+55...</code> → mantém</li>
+            <li>
+              Se vier <code>+47...</code> ou só <code>47...</code> → vira
+              <code>+55...</code>
+            </li>
+          </ul>
+          <div>
+            Saída final sempre em <b>E.164</b>: <code>+55DDDNUMERO</code>
+          </div>
+        </div>
+      </div>
     </div>
 
     <table>
       <thead>
         <tr>
           <th style="width: 55%">name</th>
-          <th style="width: 40%">phone</th>
+          <th style="width: 40%">phone_number</th>
           <th class="right" style="width: 5%">Ação</th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
     </table>
 
-    <div class="small">
-      Dicas:
-      <ul>
-        <li>
-          Telefone pode vir com <b>+</b> ou só números. O sistema remove
-          <code>=</code>, espaços, parênteses e hífen automaticamente.
-        </li>
-        <li>Se você colar uma lista “crua”, use o bloco “Cola rápida”.</li>
-      </ul>
-    </div>
-
     <script>
       const tbody = document.getElementById("tbody");
 
-      function sanitizePhone(v) {
-        if (v == null) return "";
-        let s = String(v).trim();
-        s = s.replace(/^=/, ""); // remove '=' no início
-        s = s.replace(/[\s\-\(\)\.]/g, ""); // remove espaço, hífen, parênteses, ponto
-        s = s.replace(/^"+|"+$/g, ""); // remove aspas externas
+      function sanitizePhone(raw) {
+        if (raw == null) return "";
+        let s = String(raw).trim();
+
+        // Remove "=" no começo (quando Sheets/Excel tentou virar fórmula)
+        s = s.replace(/^=+/, "");
+
+        // Remove lixo comum
+        s = s.replace(/[\s\-\(\)\.]/g, "");
+        s = s.replace(/^"+|"+$/g, "");
+
+        if (!s) return "";
+
+        // Se já está com +55, ok
+        if (/^\+55\d{10,11}$/.test(s)) return s;
+
+        // Se veio com + e DDD+numero (sem país): +47xxxxxxxxx -> +5547xxxxxxxxx
+        if (/^\+\d{10,11}$/.test(s)) return "+55" + s.slice(1);
+
+        // Se veio só com 55... (sem +): 55DDDNUMERO -> +55DDDNUMERO
+        if (/^55\d{10,11}$/.test(s)) return "+" + s;
+
+        // Se veio só com DDD+numero: 47xxxxxxxxx (10 ou 11 dígitos) -> +5547xxxxxxxxx
+        if (/^\d{10,11}$/.test(s)) return "+55" + s;
+
+        // Se veio com + mas já tem outro país, mantém (ex: +1...)
+        if (/^\+\d{11,15}$/.test(s)) return s;
+
+        // Caso diferente, retorna como está (mas já “limpo”)
         return s;
       }
 
       function csvEscape(value) {
         const s = (value ?? "").toString();
-        // Escapa se tiver vírgula, aspas ou quebra de linha
         if (/[,"\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
         return s;
       }
@@ -184,7 +246,7 @@
         inName.value = name;
 
         const inPhone = document.createElement("input");
-        inPhone.placeholder = "+5547999999999";
+        inPhone.placeholder = "+5547999999999 ou 47999999999";
         inPhone.value = phone;
         inPhone.addEventListener(
           "blur",
@@ -237,17 +299,16 @@
           if (parts.length < 2) return;
 
           const name = (parts[0] ?? "").trim();
-          const phone = sanitizePhone(
-            parts
-              .slice(1)
-              .join(line.includes(",") ? "," : ";")
-              .trim(),
-          );
+          const phoneRaw = parts
+            .slice(1)
+            .join(line.includes(",") ? "," : ";")
+            .trim();
+          const phone = sanitizePhone(phoneRaw);
 
           // pula header colado por engano
           if (
             name.toLowerCase() === "name" &&
-            phone.toLowerCase().includes("phone")
+            phoneRaw.toLowerCase().includes("phone")
           )
             return;
 
@@ -258,8 +319,8 @@
       }
 
       function downloadCsv() {
-        // Header obrigatório
-        const rows = [["name", "phone"]];
+        // Cabeçalho EXATO que o Chatwoot reconhece
+        const rows = [["name", "phone_number"]];
 
         [...tbody.querySelectorAll("tr")].forEach((tr) => {
           const inputs = tr.querySelectorAll("input");
